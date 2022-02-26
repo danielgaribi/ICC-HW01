@@ -9,8 +9,6 @@
 #include <errno.h>
 #include <assert.h>
 
-#define SUCCESS             0
-#define FAILURE             1
 #define FALSE               0
 #define TRUE                1
 
@@ -70,8 +68,44 @@ void send_buffer(int socket_fd, char* buffer, uint32_t buffer_length) {
     } while(nof_bytes > 0);
 }
 
-int addNoise(char *msg, uint32_t msg_length, noiseType noise_type, int prob, int seed, int n) {
-    return 0;
+int addNoise( char *msg, uint32_t msg_size, noiseType noise_type, int prob, int seed, int n ) {
+    int NumChangedBits = 0; 
+    if ( noise_type == noNoise ) { // debug
+        return NumChangedBits;
+    }
+
+    if ( noise_type == randomy ) {
+        srand( seed );
+        for ( int i = 0; i < msg_size; i++ ) {
+            char byte = msg[ i ];
+            uint8_t mask = 1; 
+            for ( int bit = 0; bit <= 7; bit++ ) {
+                if ( ( rand() % MAX_RAND ) < prob ) {
+                    byte = byte ^ mask;
+                    NumChangedBits++;
+                } 
+                mask = mask * 2;
+            }
+            msg[ i ] = byte;
+        }
+    } else { // noise_type == deterministic
+        int cnt = 1;
+        for ( int i = 0; i < msg_size; i++ ) {
+            char byte = msg[ i ];
+            uint8_t mask = 1; 
+            for ( int bit = 0; bit <= 7; bit++ ) {
+                if ( cnt == n ) {
+                    byte = byte ^ mask;
+                    NumChangedBits++;
+                    cnt = 0;
+                } 
+                cnt++;
+                mask = mask * 2;
+            }
+            msg[ i ] = byte;
+        }
+    }
+    return NumChangedBits;
 }
 
 int setup_listen_socket(int server_port, char *type) {
@@ -112,7 +146,7 @@ int main(int argc, char* argv[]) {
 
     ASSERT(argc == 2 || argc == 3, "argc value is to big / small");
 
-    char *noise_type_str = argv[ 1 ]; // Assuming that type of noise will be set as first argument 
+    char *noise_type_str = argv[ 1 ]; // debug: Assuming that type of noise will be set as first argument 
     if ( strcmp( noise_type_str, "-r") == 0 ) {
         ASSERT(argc == 3, "Invalid number of args");
         prob = atoi( argv[ 2 ] );
@@ -152,8 +186,7 @@ int main(int argc, char* argv[]) {
         } else if (strcmp("no", user_input) == 0) {
             break;
         } else {
-            fprintf( stderr, "Invalid answer - yes to continue, no to quit. Error: %s\n", strerror( errno ) );
-            exit( FAILURE );
+            ASSERT(0, "Invalid answer - yes to continue, no to quit");
         }
 
     }
