@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 
 #define ALLOC_BLOCK 1024
+#define MAX_STR_LEN 1024
 
 #define ASSERT(_con, _msg)    if (!(_con)) {\
                                     perror((char *)(_msg));\
@@ -56,7 +57,7 @@ uint32_t dec_file(char *buffer, int buffer_length, char *enc_buffer, int enc_buf
 }
 
 int main(int argc, char* argv[]) {
-    char *server_ip, *file_path;
+    char *server_ip, file_path[MAX_STR_LEN];
     int server_port;
     int socket_fd;
     FILE *file_fd;
@@ -97,10 +98,12 @@ int main(int argc, char* argv[]) {
         ASSERT((buffer = (char *) calloc(buffer_length, sizeof(char))) != NULL, "calloc failed");
 
         nof_corrected_bytes = dec_file(buffer, buffer_length, enc_buffer, enc_buffer_length);
+        free(enc_buffer);
 
         
         ASSERT((file_fd = fopen(file_path, "w")) >= 0, "open failed");
         write_file(file_fd, buffer_length, buffer);
+        free(buffer);
         printf("wrote: %u bytes", buffer_length);
         printf("corrected %u errors", nof_corrected_bytes);
         

@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
+#define MAX_STR_LEN 1024
+
 #define ASSERT(_con, _msg)    if (!(_con)) {\
                                     perror((char *)(_msg));\
                                     exit(1);\
@@ -44,7 +46,7 @@ void enc_file(char *buffer, int buffer_length, char *enc_buffer, int enc_buffer_
 }
 
 int main(int argc, char* argv[]) {
-    char *server_ip, *file_path;
+    char *server_ip, file_path[MAX_STR_LEN];
     int server_port;
     int socket_fd;
     FILE *file_fd;
@@ -91,7 +93,9 @@ int main(int argc, char* argv[]) {
         ASSERT((enc_buffer = (char *) calloc(enc_buffer_length, sizeof(char))) != NULL, "calloc failed");
 
         enc_file(buffer, file_length, enc_buffer, enc_buffer_length);
+        free(buffer);
         send_buffer(socket_fd, enc_buffer, enc_buffer_length);
+        free(enc_buffer);
 
         printf("sent: %u bytes\n", file_length);
 
