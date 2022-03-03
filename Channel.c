@@ -1,38 +1,62 @@
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <string.h>
-#include <unistd.h>
-#include <signal.h>
-#include <errno.h>
-#include <assert.h>
-#include <winsock2.h>
+#include <Channel.h>
 
-#define FALSE               0
-#define TRUE                1
+bool xor_32bit( uint32_t value ) {
+    uint8_t xor_val = 0;
+    uint32_t mask = 1;
+    for ( int bit = 0; bit <= 31; bit++ ) {
+        if ( ( value & mask ) != 0 ) { // bit set to "1"
+            xor_val = xor_val ^ 1;
+        }
+        mask = mask * 2;
+    }
+    return ( xor_val == 0 ) ? 0 : 1;
+}
 
-#define MAX_STR_LEN         1024 /* TODO 1024 ???????????????????????? */
-#define MAX_RAND            1 << 16
+uint32_t encode_hamming( uint32_t msg ) {
+    uint32_t msg_enc = 0;
+    uint32_t C1, C2, C3, C4, C5;
+    
+    /* Shift data bits into position and keep parity bits as zeros */
+    SET_DATA_0( msg, msg_enc );
+    SET_DATA_1_3( msg, msg_enc );
+    SET_DATA_4_10( msg, msg_enc );
+    SET_DATA_11_25( msg, msg_enc );
 
-#define ALLOC_BLOCK         1024
-#define SENDER_PORT         6342
-#define RECEIVER_PORT       6343
-#define LISTEN_QUEUE_SIZE   10      /* TODO 10???????????????????????? */
+    /* Calculate parity bits from data */
+    C1 = ( xor_32bit( ( msg_enc & C1_PARITY_MASK ) ) == 1 ) ? C1_MASK : ZERO_MASK;
+    C2 = ( xor_32bit( ( msg_enc & C2_PARITY_MASK ) ) == 1 ) ? C2_MASK : ZERO_MASK;
+    C3 = ( xor_32bit( ( msg_enc & C3_PARITY_MASK ) ) == 1 ) ? C3_MASK : ZERO_MASK;
+    C4 = ( xor_32bit( ( msg_enc & C4_PARITY_MASK ) ) == 1 ) ? C4_MASK : ZERO_MASK;
+    C5 = ( xor_32bit( ( msg_enc & C5_PARITY_MASK ) ) == 1 ) ? C5_MASK : ZERO_MASK;
 
-#define ASSERT(_con, _msg)    if (!(_con)) {\
-                                    perror("Error!\n");\
-                                    printf("%d\n", WSAGetLastError());\
-                                    perror((char *)(_msg));\
-                                    exit(1);\
-                                }
+    /* Set Parity bits in msg_enc */
+    msg_enc += C1 + C2 + C3 + C4 + C5;
+    return msg_enc;
+}
 
-typedef enum noiseType {
-    randomy  = 0,
-    deterministic  = 1,
-    noNoise = 2, // debug: For debug 
-} noiseType;
+uint32_t decode_hamming( uint32_t msg_enc ) {
+    uint32_t msg_dec = 0;
+    uint32_t C1, C2, C3, C4, C5, indexErr;
+    
+    /* Shift data bits into position and keep parity bits as zeros */
+    GET_DATA_0( msg_dec, msg_enc );
+    GET_DATA_1_3( msg_dec, msg_enc );
+    GET_DATA_4_10( msg_dec, msg_enc );
+    GET_DATA_11_25( msg_dec, msg_enc );
 
+    /* Calculate parity bits from data */
+    C1 = ( xor_32bit( ( msg_enc & C1_PARITY_MASK ) ) == 1 ) ? C1_MASK : ZERO_MASK;
+    C2 = ( xor_32bit( ( msg_enc & C2_PARITY_MASK ) ) == 1 ) ? C2_MASK : ZERO_MASK;
+    C3 = ( xor_32bit( ( msg_enc & C3_PARITY_MASK ) ) == 1 ) ? C3_MASK : ZERO_MASK;
+    C4 = ( xor_32bit( ( msg_enc & C4_PARITY_MASK ) ) == 1 ) ? C4_MASK : ZERO_MASK;
+    C5 = ( xor_32bit( ( msg_enc & C5_PARITY_MASK ) ) == 1 ) ? C5_MASK : ZERO_MASK;
+
+    indexErr = C1 + C2 + C3 + C4 + C5;
+    if ( err != 0 ) {
+        // flip bit in index err ?? 
+    }
+    return msg_dec;
+}
 
 char* get_buffer(int socket_fd, uint32_t *buffer_length) {
     int total_nof_bytes_rec = 0;
