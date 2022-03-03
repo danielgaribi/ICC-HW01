@@ -1,5 +1,4 @@
 /* gcc .\Receiver.c -lwsock32 -o .\Receiver.exe */
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -8,7 +7,6 @@
 #include <winsock2.h>
 
 #pragma comment (lib, "Ws2_32.lib")
-
 
 #define ALLOC_BLOCK 1024
 #define MAX_STR_LEN 1024
@@ -82,7 +80,6 @@ int main(int argc, char* argv[]) {
     server_ip   =   argv[1];
     server_port =   atoi(argv[2]);
 
-
     memset(&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(server_port);
@@ -116,7 +113,6 @@ int main(int argc, char* argv[]) {
         nof_corrected_bytes = dec_file(buffer, buffer_length, enc_buffer, enc_buffer_length);
         free(enc_buffer);
 
-        
         ASSERT((file_fd = fopen(file_path, "w+")) >= 0, "open failed");
         write_file(file_fd, buffer_length, buffer);
         free(buffer);

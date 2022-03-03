@@ -1,5 +1,3 @@
-/* gcc .\Channel.c -lwsock32 -o .\Channel.exe */
-
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,8 +8,6 @@
 #include <errno.h>
 #include <assert.h>
 #include <winsock2.h>
-
-#pragma comment (lib, "Ws2_32.lib")
 
 #define FALSE               0
 #define TRUE                1
