@@ -1,13 +1,19 @@
+/* gcc .\Sender.c -lwsock32 -o .\Sender.exe */
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <arpa/inet.h>
+#include <winsock2.h>
+
+#pragma comment (lib, "Ws2_32.lib")
 
 #define MAX_STR_LEN 1024
 
 #define ASSERT(_con, _msg)    if (!(_con)) {\
+                                    perror("Error!\n");\
+                                    printf("%d\n", WSAGetLastError());\
                                     perror((char *)(_msg));\
                                     exit(1);\
                                 }
@@ -17,7 +23,7 @@ void send_buffer(int socket_fd, char* buffer, uint32_t buffer_length) {
     int sent_bytes;
 
     do {
-        ASSERT((sent_bytes = write(socket_fd, buffer, nof_bytes)) >= 0, "write failed");
+        ASSERT((sent_bytes = send(socket_fd, buffer, nof_bytes, 0)) >= 0, "send failed");
         nof_bytes -= sent_bytes;
         buffer += sent_bytes;
 
@@ -28,7 +34,8 @@ int get_file_size(FILE *file_fd) {
     int file_length;
     fseek(file_fd, 0L, SEEK_END);
     file_length = ftell(file_fd);
-    rewind(file_fd);
+    fseek(file_fd, 0, SEEK_SET);
+    // rewind(file_fd);
     return file_length;
 }
 
@@ -39,6 +46,8 @@ void read_file(FILE *file_fd, int file_length, char *buffer) {
         buffer[i] = ch;
         i++;
     }
+    printf("i=%d\n", i);
+    ASSERT(i == file_length, "Read Failed");
 }
 
 void enc_file(char *buffer, int buffer_length, char *enc_buffer, int enc_buffer_length) {
@@ -53,41 +62,46 @@ int main(int argc, char* argv[]) {
     char *buffer, *enc_buffer;
     uint32_t file_length, enc_buffer_length;
     struct sockaddr_in serv_addr;
+    WSADATA wsaData;
+
+    ASSERT(WSAStartup(MAKEWORD(2,2), &wsaData) == NO_ERROR, "WSAStartup failed");
 
     ASSERT(argc == 3, "argc value is to big / small");
 
     server_ip   =   argv[1];
     server_port =   atoi(argv[2]);
 
-    /* Create TCP Socket */
-    ASSERT((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) >= 0, "socket failed");
-
     memset(&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(server_port);
-    inet_pton(AF_INET, server_ip, &(serv_addr.sin_addr));
+    serv_addr.sin_addr.s_addr = inet_addr(server_ip);
     
 
     while (1) {
+        /* Create TCP Socket */
+        ASSERT((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) != 0, "socket failed");
         ASSERT(connect(socket_fd, (struct sockaddr*) &serv_addr, sizeof(serv_addr)) >= 0, "connect failed");
 
         printf("enter file name:\n");
         scanf("%s", file_path);
 
+        printf("1\n");
         if(strcmp(file_path, "quit") == 0) {
-            close(socket_fd);
+            closesocket(socket_fd);
             break;
         }
         
         ASSERT((file_fd = fopen(file_path, "r")) >= 0, "open failed");
 
         /* Get and print file length */
-        file_length = get_file_size(file_fd);
+        // file_length = get_file_size(file_fd);
+        file_length = 80;
         printf("file length: %u bytes\n", file_length);
 
         /* Read file and send */
         ASSERT((buffer = (char *) calloc(file_length, sizeof(char))) != NULL, "calloc failed");
         read_file(file_fd, file_length, buffer);
+        printf("buf: %s\n", buffer);
 
         enc_buffer_length = file_length;
         ASSERT((enc_buffer = (char *) calloc(enc_buffer_length, sizeof(char))) != NULL, "calloc failed");
@@ -100,9 +114,8 @@ int main(int argc, char* argv[]) {
         printf("sent: %u bytes\n", file_length);
 
         fclose(file_fd);
-        close(socket_fd);
+        closesocket(socket_fd);
     }
 
     exit(0);
 }
-

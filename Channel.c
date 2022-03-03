@@ -1,4 +1,3 @@
-#include <arpa/inet.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,11 +7,13 @@
 #include <signal.h>
 #include <errno.h>
 #include <assert.h>
+#include <winsock2.h>
 
 #define FALSE               0
 #define TRUE                1
 
 #define MAX_STR_LEN         1024 /* TODO 1024 ???????????????????????? */
+#define MAX_RAND            1 << 16
 
 #define ALLOC_BLOCK         1024
 #define SENDER_PORT         6342
@@ -20,6 +21,8 @@
 #define LISTEN_QUEUE_SIZE   10      /* TODO 10???????????????????????? */
 
 #define ASSERT(_con, _msg)    if (!(_con)) {\
+                                    perror("Error!\n");\
+                                    printf("%d\n", WSAGetLastError());\
                                     perror((char *)(_msg));\
                                     exit(1);\
                                 }
@@ -40,7 +43,7 @@ char* get_buffer(int socket_fd, uint32_t *buffer_length) {
     current_buffer_pointer = buffer;
 
     do {
-        ASSERT((nof_bytes_rec = read(socket_fd, current_buffer_pointer, *buffer_length - total_nof_bytes_rec)) >= 0, "write failed");
+        ASSERT((nof_bytes_rec = recv(socket_fd, current_buffer_pointer, *buffer_length - total_nof_bytes_rec, 0)) >= 0, "recv failed");
         total_nof_bytes_rec += nof_bytes_rec;
         if (*buffer_length == total_nof_bytes_rec) {
             *buffer_length = ((*buffer_length / ALLOC_BLOCK) + 1) * ALLOC_BLOCK;
@@ -61,7 +64,7 @@ void send_buffer(int socket_fd, char* buffer, uint32_t buffer_length) {
     int sent_bytes;
 
     do {
-        ASSERT((sent_bytes = write(socket_fd, buffer, nof_bytes)) >= 0, "write failed");
+        ASSERT((sent_bytes = send(socket_fd, buffer, nof_bytes, 0)) >= 0, "send failed");
         nof_bytes -= sent_bytes;
         buffer += sent_bytes;
 
@@ -112,15 +115,14 @@ int setup_listen_socket(int server_port, char *type) {
     struct sockaddr_in serv_addr;
     int listen_fd;
 
-    ASSERT((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) >= 0, "socket failed");
-    ASSERT(setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) == 0, "setsockopt failed");
+    ASSERT((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) != INVALID_SOCKET, "socket failed");
     
     memset(&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(server_port);
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
  
-    ASSERT(bind(listen_fd, (struct sockaddr*) &serv_addr, sizeof(struct sockaddr_in)) == 0, "bind failed");
+    ASSERT(bind(listen_fd, (SOCKADDR *) &serv_addr, sizeof(serv_addr)) == 0, "bind failed");
     ASSERT(listen(listen_fd, LISTEN_QUEUE_SIZE)== 0, "listen failed");
 
 
@@ -134,9 +136,12 @@ int main(int argc, char* argv[]) {
     char user_input[MAX_STR_LEN];
     int buffer_size;
     struct sockaddr_in peer_addr;
-    socklen_t addrsize;
+    int addrsize = sizeof(struct sockaddr_in);
     int sender_listen_fd, receiver_listen_fd;
     int sender_fd, receiver_fd;
+    WSADATA wsaData;
+
+    ASSERT(WSAStartup(MAKEWORD(2,2), &wsaData) == NO_ERROR, "WSAStartup failed");
 
     int prob            = -1;
     int seed            = -1; 
@@ -144,16 +149,16 @@ int main(int argc, char* argv[]) {
     int NumChangedBits  = -1;
     noiseType noise_type;
 
-    ASSERT(argc == 2 || argc == 3, "argc value is to big / small");
+    ASSERT(argc == 3 || argc == 4, "argc value is to big / small");
 
     char *noise_type_str = argv[ 1 ]; // debug: Assuming that type of noise will be set as first argument 
     if ( strcmp( noise_type_str, "-r") == 0 ) {
-        ASSERT(argc == 3, "Invalid number of args");
+        ASSERT(argc == 4, "Invalid number of args");
         prob = atoi( argv[ 2 ] );
         seed = atoi( argv[ 3 ] );
         noise_type = randomy;
     } else if ( strcmp( noise_type_str, "-d") == 0 ) {
-        ASSERT(argc == 2, "Invalid number of args");
+        ASSERT(argc == 3, "Invalid number of args");
         n = atoi( argv[ 2 ] );
         noise_type = deterministic;
     } else if ( strcmp( noise_type_str, "-n") == 0 ) { // debug: For debug 
@@ -166,18 +171,18 @@ int main(int argc, char* argv[]) {
     receiver_listen_fd = setup_listen_socket(RECEIVER_PORT, "receiver");
 
     while (1) {
-        ASSERT((sender_fd = accept(sender_listen_fd, (struct sockaddr*) &peer_addr, &addrsize)) >= 0, "accept failed");
-        ASSERT((receiver_fd = accept(sender_listen_fd, (struct sockaddr*) &peer_addr, &addrsize)) >= 0, "accept failed");
+        ASSERT((sender_fd = accept(sender_listen_fd, (SOCKADDR *) &peer_addr, &addrsize)) != INVALID_SOCKET, "accept sender failed");
+        ASSERT((receiver_fd = accept(receiver_listen_fd, (SOCKADDR *) &peer_addr, &addrsize)) != INVALID_SOCKET, "accept receiver failed");
 
         buffer = get_buffer(sender_fd, &buffer_size);
         NumChangedBits = addNoise(buffer, buffer_size, noise_type, prob, seed, n); 
-        printf("retransmitted %d bytes, flipped %d bits", buffer_size, NumChangedBits);
+        printf("retransmitted %d bytes, flipped %d bits\n", buffer_size, NumChangedBits);
         send_buffer(receiver_fd, buffer, buffer_size);
 
         free(buffer);
 
-        close(sender_fd);
-        close(receiver_fd);
+        closesocket(sender_fd);
+        closesocket(receiver_fd);
 
         printf("continue? (yes/no)");
         scanf("%s", user_input);
@@ -190,6 +195,6 @@ int main(int argc, char* argv[]) {
         }
 
     }
-    close(sender_listen_fd);
-    close(receiver_listen_fd);
+    closesocket(sender_listen_fd);
+    closesocket(receiver_listen_fd);
 }
