@@ -1,61 +1,102 @@
-#include <Channel.h>
+#include "Channel.h"
 
-bool xor_32bit( uint32_t value ) {
-    uint8_t xor_val = 0;
-    uint32_t mask = 1;
-    for ( int bit = 0; bit <= 31; bit++ ) {
-        if ( ( value & mask ) != 0 ) { // bit set to "1"
-            xor_val = xor_val ^ 1;
+void encode_haming( short *msg ) {
+    short msg_enc[ FRAME_NOF_BITS ] = { 0 }; 
+    short C1, C2, C3, C4, C5;
+    int data_index = 0;
+
+    /* Set data bits in hamming index, set parity bits 0 for now */
+    for ( int i = 0; i < FRAME_NOF_BITS; i++ ) { 
+        if ( ( i == C1_INDEX ) || ( i == C2_INDEX ) || ( i == C3_INDEX ) || ( i == C4_INDEX ) || ( i == C5_INDEX ) ) {
+            msg_enc[ i ] = 0;
+        } else {
+            msg_enc[ i ] = msg[data_index];
+            data_index++;
         }
-        mask = mask * 2;
     }
-    return ( xor_val == 0 ) ? 0 : 1;
+
+    /* Calculate parity bits */
+    C1 = msg_enc[ 0 ] ^ msg_enc[ 2 ] ^ msg_enc[ 4 ] ^ msg_enc[ 6 ] ^ msg_enc[ 8 ] ^ msg_enc[ 10 ]
+    ^ msg_enc[ 12 ] ^ msg_enc[ 14 ] ^ msg_enc[ 16 ] ^ msg_enc[ 18 ] ^ msg_enc[ 20 ]
+    ^ msg_enc[ 22 ] ^ msg_enc[ 24 ] ^ msg_enc[ 26 ] ^ msg_enc[ 28 ] ^ msg_enc[ 30 ];
+    msg_enc[ 0 ] = C1;
+
+    /* Calculate C2 */
+    C2 = msg_enc[ 1 ] ^ msg_enc[ 2 ] ^ msg_enc[ 5 ] ^ msg_enc[ 6 ] ^ msg_enc[ 9 ] ^ msg_enc[ 10 ]
+    ^ msg_enc[ 13 ] ^ msg_enc[ 14 ] ^ msg_enc[ 17 ] ^ msg_enc[ 18 ] ^ msg_enc[ 21 ]
+    ^ msg_enc[ 22 ] ^ msg_enc[ 25 ] ^ msg_enc[ 26 ] ^ msg_enc[ 29 ] ^ msg_enc[ 30 ];
+    msg_enc[ 1 ] = C2;
+
+    /* Calculate C3 */
+    C3 = msg_enc[ 3 ] ^ msg_enc[ 4 ] ^ msg_enc[ 5 ] ^ msg_enc[ 6 ] ^ msg_enc[ 11 ] ^ msg_enc[ 12 ]
+    ^ msg_enc[ 13 ] ^ msg_enc[ 14 ] ^ msg_enc[ 19 ] ^ msg_enc[ 20 ] ^ msg_enc[ 21 ]
+    ^ msg_enc[ 22 ] ^ msg_enc[ 27 ] ^ msg_enc[ 28 ] ^ msg_enc[ 29 ] ^ msg_enc[ 30 ];
+    msg_enc[ 3 ] = C3;
+
+    /* Calculate C4 */
+    C4 = msg_enc[ 7 ] ^ msg_enc[ 8 ] ^ msg_enc[ 9 ] ^ msg_enc[ 10 ] ^ msg_enc[ 11 ] ^ msg_enc[ 12 ]
+    ^ msg_enc[ 13 ] ^ msg_enc[ 14 ] ^ msg_enc[ 23 ] ^ msg_enc[ 24 ] ^ msg_enc[ 25 ]
+    ^ msg_enc[ 26 ] ^ msg_enc[ 27 ] ^ msg_enc[ 28 ] ^ msg_enc[ 29 ] ^ msg_enc[ 30 ];
+    msg_enc[ 7 ] = C4;
+
+    /* Calculate C5 */
+    C5 = msg_enc[ 15 ] ^ msg_enc[ 16 ] ^ msg_enc[ 17 ] ^ msg_enc[ 18 ] ^ msg_enc[ 19 ] ^ msg_enc[ 20 ]
+    ^ msg_enc[ 21 ] ^ msg_enc[ 22 ] ^ msg_enc[ 23 ] ^ msg_enc[ 24 ] ^ msg_enc[ 25 ]
+    ^ msg_enc[ 26 ] ^ msg_enc[ 27 ] ^ msg_enc[ 28 ] ^ msg_enc[ 29 ] ^ msg_enc[ 30 ];
+    msg_enc[ 15 ] = C5;
+
+    /* Copy back into original array */
+    for ( int i = 0; i < 31; i++ ) {
+        msg[ i ] = msg_enc[ i ];
+    }
 }
 
-uint32_t encode_hamming( uint32_t msg ) {
-    uint32_t msg_enc = 0;
-    uint32_t C1, C2, C3, C4, C5;
-    
-    /* Shift data bits into position and keep parity bits as zeros */
-    SET_DATA_0( msg, msg_enc );
-    SET_DATA_1_3( msg, msg_enc );
-    SET_DATA_4_10( msg, msg_enc );
-    SET_DATA_11_25( msg, msg_enc );
+void decode_haming( short *msg_enc, short *msg_dec ) {
+    short C1, C2, C3, C4, C5;
+    int data_index = 0;
+    int err_index = 0;
 
-    /* Calculate parity bits from data */
-    C1 = ( xor_32bit( ( msg_enc & C1_PARITY_MASK ) ) == 1 ) ? C1_MASK : ZERO_MASK;
-    C2 = ( xor_32bit( ( msg_enc & C2_PARITY_MASK ) ) == 1 ) ? C2_MASK : ZERO_MASK;
-    C3 = ( xor_32bit( ( msg_enc & C3_PARITY_MASK ) ) == 1 ) ? C3_MASK : ZERO_MASK;
-    C4 = ( xor_32bit( ( msg_enc & C4_PARITY_MASK ) ) == 1 ) ? C4_MASK : ZERO_MASK;
-    C5 = ( xor_32bit( ( msg_enc & C5_PARITY_MASK ) ) == 1 ) ? C5_MASK : ZERO_MASK;
+    /* Calculate parity bits */
+    /* Calculate C1 - bits: 0101 0101 0101 0101 0101 0101 0101 0101 */
+    C1 = msg_enc[ 0 ] ^ msg_enc[ 2 ] ^ msg_enc[ 4 ] ^ msg_enc[ 6 ] ^ msg_enc[ 8 ] ^ msg_enc[ 10 ]
+    ^ msg_enc[ 12 ] ^ msg_enc[ 14 ] ^ msg_enc[ 16 ] ^ msg_enc[ 18 ] ^ msg_enc[ 20 ]
+    ^ msg_enc[ 22 ] ^ msg_enc[ 24 ] ^ msg_enc[ 26 ] ^ msg_enc[ 28 ] ^ msg_enc[ 30 ];
 
-    /* Set Parity bits in msg_enc */
-    msg_enc += C1 + C2 + C3 + C4 + C5;
-    return msg_enc;
-}
+    /* Calculate C2 - bits: 0110 0110 0110 0110 0110 0110 0110 0110 */
+    C2 = msg_enc[ 1 ] ^ msg_enc[ 2 ] ^ msg_enc[ 5 ] ^ msg_enc[ 6 ] ^ msg_enc[ 9 ] ^ msg_enc[ 10 ]
+    ^ msg_enc[ 13 ] ^ msg_enc[ 14 ] ^ msg_enc[ 17 ] ^ msg_enc[ 18 ] ^ msg_enc[ 21 ]
+    ^ msg_enc[ 22 ] ^ msg_enc[ 25 ] ^ msg_enc[ 26 ] ^ msg_enc[ 29 ] ^ msg_enc[ 30 ];
 
-uint32_t decode_hamming( uint32_t msg_enc ) {
-    uint32_t msg_dec = 0;
-    uint32_t C1, C2, C3, C4, C5, indexErr;
-    
-    /* Shift data bits into position and keep parity bits as zeros */
-    GET_DATA_0( msg_dec, msg_enc );
-    GET_DATA_1_3( msg_dec, msg_enc );
-    GET_DATA_4_10( msg_dec, msg_enc );
-    GET_DATA_11_25( msg_dec, msg_enc );
+    /* Calculate C3 - bits: 0111 1000 0111 1000 0111 1000 0111 1000 */
+    C3 = msg_enc[ 3 ] ^ msg_enc[ 4 ] ^ msg_enc[ 5 ] ^ msg_enc[ 6 ] ^ msg_enc[ 11 ] ^ msg_enc[ 12 ]
+    ^ msg_enc[ 13 ] ^ msg_enc[ 14 ] ^ msg_enc[ 19 ] ^ msg_enc[ 20 ] ^ msg_enc[ 21 ]
+    ^ msg_enc[ 22 ] ^ msg_enc[ 27 ] ^ msg_enc[ 28 ] ^ msg_enc[ 29 ] ^ msg_enc[ 30 ];
 
-    /* Calculate parity bits from data */
-    C1 = ( xor_32bit( ( msg_enc & C1_PARITY_MASK ) ) == 1 ) ? C1_MASK : ZERO_MASK;
-    C2 = ( xor_32bit( ( msg_enc & C2_PARITY_MASK ) ) == 1 ) ? C2_MASK : ZERO_MASK;
-    C3 = ( xor_32bit( ( msg_enc & C3_PARITY_MASK ) ) == 1 ) ? C3_MASK : ZERO_MASK;
-    C4 = ( xor_32bit( ( msg_enc & C4_PARITY_MASK ) ) == 1 ) ? C4_MASK : ZERO_MASK;
-    C5 = ( xor_32bit( ( msg_enc & C5_PARITY_MASK ) ) == 1 ) ? C5_MASK : ZERO_MASK;
+    /* Calculate C4 - bits: 0111 1111 1000 0000 0111 1111 1000 0000 */
+    C4 = msg_enc[ 7 ] ^ msg_enc[ 8 ] ^ msg_enc[ 9 ] ^ msg_enc[ 10 ] ^ msg_enc[ 11 ] ^ msg_enc[ 12 ]
+    ^ msg_enc[ 13 ] ^ msg_enc[ 14 ] ^ msg_enc[ 23 ] ^ msg_enc[ 24 ] ^ msg_enc[ 25 ]
+    ^ msg_enc[ 26 ] ^ msg_enc[ 27 ] ^ msg_enc[ 28 ] ^ msg_enc[ 29 ] ^ msg_enc[ 30 ];
 
-    indexErr = C1 + C2 + C3 + C4 + C5;
-    if ( err != 0 ) {
-        // flip bit in index err ?? 
+    /* Calculate C5 -bits: 0111 1111 1111 1111 1000 0000 0000 0000 */
+    C5 = msg_enc[ 15 ] ^ msg_enc[ 16 ] ^ msg_enc[ 17 ] ^ msg_enc[ 18 ] ^ msg_enc[ 19 ] ^ msg_enc[ 20 ]
+    ^ msg_enc[ 21 ] ^ msg_enc[ 22 ] ^ msg_enc[ 23 ] ^ msg_enc[ 24 ] ^ msg_enc[ 25 ]
+    ^ msg_enc[ 26 ] ^ msg_enc[ 27 ] ^ msg_enc[ 28 ] ^ msg_enc[ 29 ] ^ msg_enc[ 30 ];
+
+    /* Fix msg if needed */
+    err_index += C1_WEIGHT * C1 + C2_WEIGHT * C2 + C3_WEIGHT * C3 + C4_WEIGHT * C4 + C5_WEIGHT * C5;
+    if ( err_index != 0 ) {
+        msg_enc[ err_index ] = ( msg_enc[ err_index ] == 1 ) ? 0 : 1; // Flip bit 
+    } // Else - error not detected 
+
+    /* Extract data from encoded msg */
+    for ( int i = 0; i < FRAME_NOF_BITS; i++ ) { 
+        if ( ( i == C1_INDEX ) || ( i == C2_INDEX ) || ( i == C3_INDEX ) || ( i == C4_INDEX ) || ( i == C5_INDEX ) ) {
+            continue;
+        } else {
+            msg_dec[ data_index ] = msg_enc[ i ];
+            data_index++;
+        }
     }
-    return msg_dec;
 }
 
 char* get_buffer(int socket_fd, uint32_t *buffer_length) {
