@@ -33,16 +33,8 @@ typedef enum noiseType {
     noNoise = 2, // debug: For debug 
 } noiseType;
 
-#define FRAME_NOF_BITS 31
-
-#define C1_INDEX    0
-#define C2_INDEX    1
-#define C3_INDEX    3
-#define C4_INDEX    7
-#define C5_INDEX    15
-
-#define C1_WEIGHT    1
-#define C2_WEIGHT    2
-#define C3_WEIGHT    4
-#define C4_WEIGHT    8
-#define C5_WEIGHT    16
+char* get_buffer(int socket_fd, uint32_t *buffer_length);
+void send_buffer(int socket_fd, char* buffer, uint32_t buffer_length);
+int addNoise( char *msg, uint32_t msg_size, noiseType noise_type, int prob, int seed, int n );
+int setup_listen_socket(int server_port, char *type);
+int main(int argc, char* argv[]);
