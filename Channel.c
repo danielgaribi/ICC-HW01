@@ -1,38 +1,103 @@
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <string.h>
-#include <unistd.h>
-#include <signal.h>
-#include <errno.h>
-#include <assert.h>
-#include <winsock2.h>
+#include "Channel.h"
 
-#define FALSE               0
-#define TRUE                1
+void encode_haming( short *msg ) {
+    short msg_enc[ FRAME_NOF_BITS ] = { 0 }; 
+    short C1, C2, C3, C4, C5;
+    int data_index = 0;
 
-#define MAX_STR_LEN         1024 /* TODO 1024 ???????????????????????? */
-#define MAX_RAND            1 << 16
+    /* Set data bits in hamming index, set parity bits 0 for now */
+    for ( int i = 0; i < FRAME_NOF_BITS; i++ ) { 
+        if ( ( i == C1_INDEX ) || ( i == C2_INDEX ) || ( i == C3_INDEX ) || ( i == C4_INDEX ) || ( i == C5_INDEX ) ) {
+            msg_enc[ i ] = 0;
+        } else {
+            msg_enc[ i ] = msg[data_index];
+            data_index++;
+        }
+    }
 
-#define ALLOC_BLOCK         1024
-#define SENDER_PORT         6342
-#define RECEIVER_PORT       6343
-#define LISTEN_QUEUE_SIZE   10      /* TODO 10???????????????????????? */
+    /* Calculate parity bits */
+    C1 = msg_enc[ 0 ] ^ msg_enc[ 2 ] ^ msg_enc[ 4 ] ^ msg_enc[ 6 ] ^ msg_enc[ 8 ] ^ msg_enc[ 10 ]
+    ^ msg_enc[ 12 ] ^ msg_enc[ 14 ] ^ msg_enc[ 16 ] ^ msg_enc[ 18 ] ^ msg_enc[ 20 ]
+    ^ msg_enc[ 22 ] ^ msg_enc[ 24 ] ^ msg_enc[ 26 ] ^ msg_enc[ 28 ] ^ msg_enc[ 30 ];
+    msg_enc[ 0 ] = C1;
 
-#define ASSERT(_con, _msg)    if (!(_con)) {\
-                                    perror("Error!\n");\
-                                    printf("%d\n", WSAGetLastError());\
-                                    perror((char *)(_msg));\
-                                    exit(1);\
-                                }
+    /* Calculate C2 */
+    C2 = msg_enc[ 1 ] ^ msg_enc[ 2 ] ^ msg_enc[ 5 ] ^ msg_enc[ 6 ] ^ msg_enc[ 9 ] ^ msg_enc[ 10 ]
+    ^ msg_enc[ 13 ] ^ msg_enc[ 14 ] ^ msg_enc[ 17 ] ^ msg_enc[ 18 ] ^ msg_enc[ 21 ]
+    ^ msg_enc[ 22 ] ^ msg_enc[ 25 ] ^ msg_enc[ 26 ] ^ msg_enc[ 29 ] ^ msg_enc[ 30 ];
+    msg_enc[ 1 ] = C2;
 
-typedef enum noiseType {
-    randomy  = 0,
-    deterministic  = 1,
-    noNoise = 2, // debug: For debug 
-} noiseType;
+    /* Calculate C3 */
+    C3 = msg_enc[ 3 ] ^ msg_enc[ 4 ] ^ msg_enc[ 5 ] ^ msg_enc[ 6 ] ^ msg_enc[ 11 ] ^ msg_enc[ 12 ]
+    ^ msg_enc[ 13 ] ^ msg_enc[ 14 ] ^ msg_enc[ 19 ] ^ msg_enc[ 20 ] ^ msg_enc[ 21 ]
+    ^ msg_enc[ 22 ] ^ msg_enc[ 27 ] ^ msg_enc[ 28 ] ^ msg_enc[ 29 ] ^ msg_enc[ 30 ];
+    msg_enc[ 3 ] = C3;
 
+    /* Calculate C4 */
+    C4 = msg_enc[ 7 ] ^ msg_enc[ 8 ] ^ msg_enc[ 9 ] ^ msg_enc[ 10 ] ^ msg_enc[ 11 ] ^ msg_enc[ 12 ]
+    ^ msg_enc[ 13 ] ^ msg_enc[ 14 ] ^ msg_enc[ 23 ] ^ msg_enc[ 24 ] ^ msg_enc[ 25 ]
+    ^ msg_enc[ 26 ] ^ msg_enc[ 27 ] ^ msg_enc[ 28 ] ^ msg_enc[ 29 ] ^ msg_enc[ 30 ];
+    msg_enc[ 7 ] = C4;
+
+    /* Calculate C5 */
+    C5 = msg_enc[ 15 ] ^ msg_enc[ 16 ] ^ msg_enc[ 17 ] ^ msg_enc[ 18 ] ^ msg_enc[ 19 ] ^ msg_enc[ 20 ]
+    ^ msg_enc[ 21 ] ^ msg_enc[ 22 ] ^ msg_enc[ 23 ] ^ msg_enc[ 24 ] ^ msg_enc[ 25 ]
+    ^ msg_enc[ 26 ] ^ msg_enc[ 27 ] ^ msg_enc[ 28 ] ^ msg_enc[ 29 ] ^ msg_enc[ 30 ];
+    msg_enc[ 15 ] = C5;
+
+    /* Copy back into original array */
+    for ( int i = 0; i < 31; i++ ) {
+        msg[ i ] = msg_enc[ i ];
+    }
+}
+
+void decode_haming( short *msg_enc, short *msg_dec ) {
+    short C1, C2, C3, C4, C5;
+    int data_index = 0;
+    int err_index = 0;
+
+    /* Calculate parity bits */
+    /* Calculate C1 - bits: 0101 0101 0101 0101 0101 0101 0101 0101 */
+    C1 = msg_enc[ 0 ] ^ msg_enc[ 2 ] ^ msg_enc[ 4 ] ^ msg_enc[ 6 ] ^ msg_enc[ 8 ] ^ msg_enc[ 10 ]
+    ^ msg_enc[ 12 ] ^ msg_enc[ 14 ] ^ msg_enc[ 16 ] ^ msg_enc[ 18 ] ^ msg_enc[ 20 ]
+    ^ msg_enc[ 22 ] ^ msg_enc[ 24 ] ^ msg_enc[ 26 ] ^ msg_enc[ 28 ] ^ msg_enc[ 30 ];
+
+    /* Calculate C2 - bits: 0110 0110 0110 0110 0110 0110 0110 0110 */
+    C2 = msg_enc[ 1 ] ^ msg_enc[ 2 ] ^ msg_enc[ 5 ] ^ msg_enc[ 6 ] ^ msg_enc[ 9 ] ^ msg_enc[ 10 ]
+    ^ msg_enc[ 13 ] ^ msg_enc[ 14 ] ^ msg_enc[ 17 ] ^ msg_enc[ 18 ] ^ msg_enc[ 21 ]
+    ^ msg_enc[ 22 ] ^ msg_enc[ 25 ] ^ msg_enc[ 26 ] ^ msg_enc[ 29 ] ^ msg_enc[ 30 ];
+
+    /* Calculate C3 - bits: 0111 1000 0111 1000 0111 1000 0111 1000 */
+    C3 = msg_enc[ 3 ] ^ msg_enc[ 4 ] ^ msg_enc[ 5 ] ^ msg_enc[ 6 ] ^ msg_enc[ 11 ] ^ msg_enc[ 12 ]
+    ^ msg_enc[ 13 ] ^ msg_enc[ 14 ] ^ msg_enc[ 19 ] ^ msg_enc[ 20 ] ^ msg_enc[ 21 ]
+    ^ msg_enc[ 22 ] ^ msg_enc[ 27 ] ^ msg_enc[ 28 ] ^ msg_enc[ 29 ] ^ msg_enc[ 30 ];
+
+    /* Calculate C4 - bits: 0111 1111 1000 0000 0111 1111 1000 0000 */
+    C4 = msg_enc[ 7 ] ^ msg_enc[ 8 ] ^ msg_enc[ 9 ] ^ msg_enc[ 10 ] ^ msg_enc[ 11 ] ^ msg_enc[ 12 ]
+    ^ msg_enc[ 13 ] ^ msg_enc[ 14 ] ^ msg_enc[ 23 ] ^ msg_enc[ 24 ] ^ msg_enc[ 25 ]
+    ^ msg_enc[ 26 ] ^ msg_enc[ 27 ] ^ msg_enc[ 28 ] ^ msg_enc[ 29 ] ^ msg_enc[ 30 ];
+
+    /* Calculate C5 -bits: 0111 1111 1111 1111 1000 0000 0000 0000 */
+    C5 = msg_enc[ 15 ] ^ msg_enc[ 16 ] ^ msg_enc[ 17 ] ^ msg_enc[ 18 ] ^ msg_enc[ 19 ] ^ msg_enc[ 20 ]
+    ^ msg_enc[ 21 ] ^ msg_enc[ 22 ] ^ msg_enc[ 23 ] ^ msg_enc[ 24 ] ^ msg_enc[ 25 ]
+    ^ msg_enc[ 26 ] ^ msg_enc[ 27 ] ^ msg_enc[ 28 ] ^ msg_enc[ 29 ] ^ msg_enc[ 30 ];
+
+    /* Fix msg if needed */
+    err_index += C1_WEIGHT * C1 + C2_WEIGHT * C2 + C3_WEIGHT * C3 + C4_WEIGHT * C4 + C5_WEIGHT * C5;
+    if ( err_index != 0 ) {
+        msg_enc[ err_index ] = ( msg_enc[ err_index ] == 1 ) ? 0 : 1; // Flip bit 
+    } // Else - error not detected 
+
+    /* Extract data from encoded msg */
+    for ( int i = 0; i < FRAME_NOF_BITS; i++ ) { 
+        if ( ( i == C1_INDEX ) || ( i == C2_INDEX ) || ( i == C3_INDEX ) || ( i == C4_INDEX ) || ( i == C5_INDEX ) ) {
+            continue;
+        } else {
+            msg_dec[ data_index ] = msg_enc[ i ];
+            data_index++;
+        }
+    }
+}
 
 char* get_buffer(int socket_fd, uint32_t *buffer_length) {
     int total_nof_bytes_rec = 0;
