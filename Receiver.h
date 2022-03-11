@@ -40,7 +40,7 @@
                                     exit(1);\
                                 }
 
-void decode_haming( short *msg_enc, short *msg_dec );
+int decode_haming( short *msg_enc, short *msg_dec );
 uint32_t get_buffer(int socket_fd, char* enc_buffer, uint32_t buffer_length);
 uint32_t write_file(FILE *file_fd, uint32_t buffer_length, char *buffer);
 void convert_bit_array_to_buffer(char *buffer, int *buffer_length, short *bits_array, int bits_array_length);

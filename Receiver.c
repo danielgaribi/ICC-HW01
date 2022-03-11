@@ -1,7 +1,7 @@
 /* gcc .\Receiver.c -lwsock32 -o .\Receiver.exe */
 #include "Receiver.h"
 
-void decode_haming( short *msg_enc, short *msg_dec ) {
+int decode_haming( short *msg_enc, short *msg_dec ) {
     short C1, C2, C3, C4, C5;
     int data_index = 0;
     int err_index = 0;
@@ -46,6 +46,12 @@ void decode_haming( short *msg_enc, short *msg_dec ) {
             msg_dec[ data_index ] = msg_enc[ i ];
             data_index++;
         }
+    }
+    
+    if ( err_index == 0 ) {
+        return 0;
+    } else {
+        return 1;
     }
 }
 
@@ -116,13 +122,12 @@ uint32_t dec_file(char *buffer, int *buffer_length, char *enc_buffer, int enc_bu
                 for(int k = 0; k < FRAME_NOF_BITS; k++) {
                     printf("%d: %u\n", k, enc_bits_array[k]);
                 }
-                decode_haming(enc_bits_array, sub_data_bits_array);
+                nof_corrected_bytes += decode_haming(enc_bits_array, sub_data_bits_array);
                 printf("After H:\n");
                 for(int k = 0; k < FRAME_NOF_DATA_BITS; k++) {
                     printf("%d: %u\n", k, sub_data_bits_array[k]);
                 }
                 nof_bits += FRAME_NOF_DATA_BITS;
-                nof_corrected_bytes += 0; //////////////////////////////////////////////////////////////// TODO
                 sub_data_bits_array += FRAME_NOF_DATA_BITS;
                 index = 0;
             }
