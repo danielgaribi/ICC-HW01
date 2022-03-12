@@ -19,8 +19,6 @@
 #define MAX_RAND            1 << 16
 
 #define ALLOC_BLOCK         1024
-#define SENDER_PORT         6342
-#define RECEIVER_PORT       6343
 #define LISTEN_QUEUE_SIZE   10      /* TODO 10???????????????????????? */
 
 #define ASSERT(_con, _msg)    if (!(_con)) {\
