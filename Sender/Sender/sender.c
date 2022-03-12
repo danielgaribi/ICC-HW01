@@ -96,6 +96,7 @@ int read_frame_from_file(FILE* file_fd, int file_length, char* buffer) {
 
 void convert_bit_array_to_buffer(char* enc_buffer, int* enc_buffer_length, short* bits_array, int bits_array_length) {
     int i, j, index = 0;
+    int is_during_word = 0;
     short offset;
     char c;
     int size_of_char_in_bits = CONVERT_BYTES_TO_BITS(sizeof(char));
@@ -111,7 +112,16 @@ void convert_bit_array_to_buffer(char* enc_buffer, int* enc_buffer_length, short
             index++;
             c = 0;
             offset = size_of_char_in_bits - 1;
+            is_during_word = 0;
         }
+        else {
+            is_during_word = 1;
+        }
+    }
+
+    if (is_during_word == 1) {
+        enc_buffer[index] = c;
+        index++;
     }
 
     *enc_buffer_length = index;
@@ -135,6 +145,11 @@ void enc_file(char* buffer, uint32_t buffer_length, char* enc_buffer, uint32_t* 
             }
         }
     }
+    if (index != 0) {
+        encode_haming(sub_bits_array);
+        sub_bits_array += FRAME_NOF_BITS;
+        nof_bits += FRAME_NOF_BITS;
+    }
     convert_bit_array_to_buffer(enc_buffer, enc_buffer_length, bits_array, nof_bits);
 }
 
@@ -143,7 +158,7 @@ int main(int argc, char* argv[]) {
     int server_port;
     int socket_fd;
     FILE* file_fd;
-    uint32_t file_length, enc_buffer_length, read_bytes, sent_bytes;
+    uint32_t file_length, enc_buffer_length, read_bytes, sent_bytes, total_read_bytes, remain_bytes;
     struct sockaddr_in serv_addr;
     WSADATA wsaData;
 
@@ -169,7 +184,7 @@ int main(int argc, char* argv[]) {
         ASSERT(connect(socket_fd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) >= 0, "connect failed");
 
         printf("enter file name:\n");
-        scanf_s("%s", file_path);
+        scanf("%s", file_path);
 
         if (strcmp(file_path, "quit") == 0) {
             closesocket(socket_fd);
@@ -184,9 +199,13 @@ int main(int argc, char* argv[]) {
 
         read_bytes = 0;
         sent_bytes = 0;
+        total_read_bytes = 0;
+        remain_bytes = file_length;
         /* Read file and send */
-        while (file_length != read_bytes) {
-            read_bytes += read_frame_from_file(file_fd, file_length, data_buffer);
+        while (file_length != total_read_bytes) {
+            read_bytes = read_frame_from_file(file_fd, remain_bytes, data_buffer);
+            remain_bytes -= read_bytes;
+            total_read_bytes += read_bytes;
             enc_file(data_buffer, read_bytes, enc_buffer, &enc_buffer_length);
             sent_bytes += send_buffer(socket_fd, enc_buffer, enc_buffer_length);
         }

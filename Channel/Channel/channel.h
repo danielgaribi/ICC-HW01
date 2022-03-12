@@ -1,6 +1,7 @@
 #pragma once
 
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS
 
 #include <stdint.h>
 #include <stdio.h>
@@ -21,6 +22,16 @@
 #define ALLOC_BLOCK         1024
 #define LISTEN_QUEUE_SIZE   10      /* TODO 10???????????????????????? */
 
+#define FRAME_NOF_DATA_BITS     26
+#define FRAME_NOF_BITS          31
+#define NOF_FRAMS_IN_PACKET     8
+#define NOF_BITS_IN_BYTE        8
+#define DATA_BUFFER_LENFTH      CONVERT_BIT_TO_BYTES(FRAME_NOF_DATA_BITS * NOF_FRAMS_IN_PACKET)
+#define ENC_BUFFER_LENFTH       CONVERT_BIT_TO_BYTES(FRAME_NOF_BITS * NOF_FRAMS_IN_PACKET)
+
+#define CONVERT_BIT_TO_BYTES(_nof_bits)    ((_nof_bits) / NOF_BITS_IN_BYTE)
+#define CONVERT_BYTES_TO_BITS(_nof_bytes)  ((_nof_bytes) * NOF_BITS_IN_BYTE)
+
 #define ASSERT(_con, _msg)    if (!(_con)) {\
                                     perror("Error!\n");\
                                     printf("%d\n", WSAGetLastError());\
@@ -34,8 +45,8 @@ typedef enum noiseType {
     noNoise = 2, // debug: For debug 
 } noiseType;
 
-char* get_buffer(int socket_fd, uint32_t* buffer_length);
-void send_buffer(int socket_fd, char* buffer, uint32_t buffer_length);
+uint32_t get_buffer(int socket_fd, char* buffer, uint32_t buffer_length);
+uint32_t send_buffer(int socket_fd, char* buffer, uint32_t buffer_length);
 int addNoise(char* msg, uint32_t msg_size, noiseType noise_type, int prob, int seed, int n);
 int setup_listen_socket(int server_port, char* type);
 int main(int argc, char* argv[]);
