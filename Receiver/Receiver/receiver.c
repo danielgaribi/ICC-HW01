@@ -27,7 +27,7 @@ int decode_haming(short* msg_enc, short* msg_dec) {
         ^ msg_enc[13] ^ msg_enc[14] ^ msg_enc[23] ^ msg_enc[24] ^ msg_enc[25]
         ^ msg_enc[26] ^ msg_enc[27] ^ msg_enc[28] ^ msg_enc[29] ^ msg_enc[30];
 
-    /* Calculate C5 -bits: 0111 1111 1111 1111 1000 0000 0000 0000 */
+    /* Calculate C5 - bits: 0111 1111 1111 1111 1000 0000 0000 0000 */
     C5 = msg_enc[15] ^ msg_enc[16] ^ msg_enc[17] ^ msg_enc[18] ^ msg_enc[19] ^ msg_enc[20]
         ^ msg_enc[21] ^ msg_enc[22] ^ msg_enc[23] ^ msg_enc[24] ^ msg_enc[25]
         ^ msg_enc[26] ^ msg_enc[27] ^ msg_enc[28] ^ msg_enc[29] ^ msg_enc[30];
@@ -35,7 +35,7 @@ int decode_haming(short* msg_enc, short* msg_dec) {
     /* Fix msg if needed */
     err_index += C1_WEIGHT * C1 + C2_WEIGHT * C2 + C3_WEIGHT * C3 + C4_WEIGHT * C4 + C5_WEIGHT * C5;
     if (err_index != 0) {
-        msg_enc[err_index] = (msg_enc[err_index] == 1) ? 0 : 1; // Flip bit 
+        msg_enc[err_index - 1] = (msg_enc[err_index - 1] == 1) ? 0 : 1; // Flip bit 
     } // Else - error not detected 
 
     /* Extract data from encoded msg */
