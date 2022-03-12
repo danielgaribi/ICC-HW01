@@ -78,22 +78,24 @@ int addNoise(char* msg, uint32_t msg_size, noiseType noise_type, int prob, int s
     return NumChangedBits;
 }
 
-int setup_listen_socket(int server_port, char* type) {
+int setup_listen_socket(char* type) {
     struct sockaddr_in serv_addr;
     int listen_fd;
+    int size;
 
     ASSERT((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) != INVALID_SOCKET, "socket failed");
 
     memset(&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(server_port);
+    serv_addr.sin_port = htons(0);
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
     ASSERT(bind(listen_fd, (SOCKADDR*)&serv_addr, sizeof(serv_addr)) == 0, "bind failed");
     ASSERT(listen(listen_fd, LISTEN_QUEUE_SIZE) == 0, "listen failed");
 
-
-    printf("%s socket: IP address = %s port = %d\n", type, inet_ntoa(serv_addr.sin_addr), server_port);
+    size = sizeof(serv_addr);
+    ASSERT(getsockname(listen_fd, (struct sockaddr*)&serv_addr, &size) == NO_ERROR, "getsockname failed");
+    printf("%s socket: IP address = %s port = %d\n", type, inet_ntoa(serv_addr.sin_addr), ntohs(serv_addr.sin_port));
 
     return listen_fd;
 }
@@ -137,8 +139,8 @@ int main(int argc, char* argv[]) {
         ASSERT(0, "Invalid noise type, use -r for random and -d of args");
     }
 
-    sender_listen_fd = setup_listen_socket(SENDER_PORT, "sender");
-    receiver_listen_fd = setup_listen_socket(RECEIVER_PORT, "receiver");
+    sender_listen_fd = setup_listen_socket("sender");
+    receiver_listen_fd = setup_listen_socket("receiver");
 
     while (1) {
         ASSERT((sender_fd = accept(sender_listen_fd, (SOCKADDR*)&peer_addr, &addrsize)) != INVALID_SOCKET, "accept sender failed");
