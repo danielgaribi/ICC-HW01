@@ -161,7 +161,7 @@ int main(int argc, char* argv[]) {
         closesocket(sender_fd);
         closesocket(receiver_fd);
 
-        printf("continue? (yes/no)");
+        printf("continue? (yes/no)\n");
         scanf("%s", user_input);
         if (strcmp("yes", user_input) == 0) {
             continue;
