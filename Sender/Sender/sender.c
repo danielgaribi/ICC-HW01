@@ -22,34 +22,34 @@ void encode_haming(short* msg) {
     C1 = msg_enc[0] ^ msg_enc[2] ^ msg_enc[4] ^ msg_enc[6] ^ msg_enc[8] ^ msg_enc[10]
         ^ msg_enc[12] ^ msg_enc[14] ^ msg_enc[16] ^ msg_enc[18] ^ msg_enc[20]
         ^ msg_enc[22] ^ msg_enc[24] ^ msg_enc[26] ^ msg_enc[28] ^ msg_enc[30];
-    msg_enc[0] = C1;
+    msg_enc[C1_INDEX] = C1;
 
     /* Calculate C2 */
     C2 = msg_enc[1] ^ msg_enc[2] ^ msg_enc[5] ^ msg_enc[6] ^ msg_enc[9] ^ msg_enc[10]
         ^ msg_enc[13] ^ msg_enc[14] ^ msg_enc[17] ^ msg_enc[18] ^ msg_enc[21]
         ^ msg_enc[22] ^ msg_enc[25] ^ msg_enc[26] ^ msg_enc[29] ^ msg_enc[30];
-    msg_enc[1] = C2;
+    msg_enc[C2_INDEX] = C2;
 
     /* Calculate C3 */
     C3 = msg_enc[3] ^ msg_enc[4] ^ msg_enc[5] ^ msg_enc[6] ^ msg_enc[11] ^ msg_enc[12]
         ^ msg_enc[13] ^ msg_enc[14] ^ msg_enc[19] ^ msg_enc[20] ^ msg_enc[21]
         ^ msg_enc[22] ^ msg_enc[27] ^ msg_enc[28] ^ msg_enc[29] ^ msg_enc[30];
-    msg_enc[3] = C3;
+    msg_enc[C3_INDEX] = C3;
 
     /* Calculate C4 */
     C4 = msg_enc[7] ^ msg_enc[8] ^ msg_enc[9] ^ msg_enc[10] ^ msg_enc[11] ^ msg_enc[12]
         ^ msg_enc[13] ^ msg_enc[14] ^ msg_enc[23] ^ msg_enc[24] ^ msg_enc[25]
         ^ msg_enc[26] ^ msg_enc[27] ^ msg_enc[28] ^ msg_enc[29] ^ msg_enc[30];
-    msg_enc[7] = C4;
+    msg_enc[C4_INDEX] = C4;
 
     /* Calculate C5 */
     C5 = msg_enc[15] ^ msg_enc[16] ^ msg_enc[17] ^ msg_enc[18] ^ msg_enc[19] ^ msg_enc[20]
         ^ msg_enc[21] ^ msg_enc[22] ^ msg_enc[23] ^ msg_enc[24] ^ msg_enc[25]
         ^ msg_enc[26] ^ msg_enc[27] ^ msg_enc[28] ^ msg_enc[29] ^ msg_enc[30];
-    msg_enc[15] = C5;
+    msg_enc[C5_INDEX] = C5;
 
     /* Copy back into original array */
-    for (int i = 0; i < 31; i++) {
+    for (int i = 0; i < FRAME_NOF_BITS; i++) {
         msg[i] = msg_enc[i];
     }
 }
