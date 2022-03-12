@@ -1,40 +1,36 @@
 #include "channel.h"
 
-char* get_buffer(int socket_fd, uint32_t* buffer_length) {
+uint32_t get_buffer(int socket_fd, char* buffer, uint32_t buffer_length) {
     int total_nof_bytes_rec = 0;
     int nof_bytes_rec;
-    char* buffer, * current_buffer_pointer;
-    ASSERT((buffer = (char*)calloc(ALLOC_BLOCK, sizeof(char))) != NULL, "calloc failed");
-    *buffer_length = ALLOC_BLOCK;
-    current_buffer_pointer = buffer;
+    char* current_buffer_pointer = buffer;
 
     do {
-        ASSERT((nof_bytes_rec = recv(socket_fd, current_buffer_pointer, *buffer_length - total_nof_bytes_rec, 0)) >= 0, "recv failed");
+        ASSERT((nof_bytes_rec = recv(socket_fd, current_buffer_pointer, buffer_length - total_nof_bytes_rec, 0)) >= 0, "recv failed");
         total_nof_bytes_rec += nof_bytes_rec;
-        if (*buffer_length == total_nof_bytes_rec) {
-            *buffer_length = ((*buffer_length / ALLOC_BLOCK) + 1) * ALLOC_BLOCK;
-            ASSERT((buffer = (char*)realloc(buffer, *buffer_length * sizeof(char))) != NULL, "realloc failed");
+        if (buffer_length == total_nof_bytes_rec) {
+            break;
         }
         current_buffer_pointer += total_nof_bytes_rec;
 
     } while (nof_bytes_rec > 0);
 
-    *buffer_length = total_nof_bytes_rec;
-    ASSERT((buffer = (char*)realloc(buffer, *buffer_length * sizeof(char))) != NULL, "realloc failed");
-
-    return buffer;
+    return total_nof_bytes_rec;
 }
 
-void send_buffer(int socket_fd, char* buffer, uint32_t buffer_length) {
-    int nof_bytes = buffer_length;
-    int sent_bytes;
+uint32_t send_buffer(int socket_fd, char* buffer, uint32_t buffer_length) {
+    uint32_t nof_bytes = buffer_length;
+    uint32_t sent_bytes;
+    uint32_t total_nof_sent_bytes = 0;
 
     do {
         ASSERT((sent_bytes = send(socket_fd, buffer, nof_bytes, 0)) >= 0, "send failed");
         nof_bytes -= sent_bytes;
         buffer += sent_bytes;
-
+        total_nof_sent_bytes += sent_bytes;
     } while (nof_bytes > 0);
+
+    return total_nof_sent_bytes;
 }
 
 int addNoise(char* msg, uint32_t msg_size, noiseType noise_type, int prob, int seed, int n) {
@@ -101,13 +97,13 @@ int setup_listen_socket(char* type) {
 }
 
 int main(int argc, char* argv[]) {
-    char* buffer;
+    char buffer[ENC_BUFFER_LENGTH] = { 0 };
     char user_input[MAX_STR_LEN];
-    int buffer_size;
     struct sockaddr_in peer_addr;
     int addrsize = sizeof(struct sockaddr_in);
     int sender_listen_fd, receiver_listen_fd;
     int sender_fd, receiver_fd;
+    uint16_t recieved_bytes, total_recieved_bytes, numChangedBits, totalNumChangedBits;
     WSADATA wsaData;
 
     ASSERT(WSAStartup(MAKEWORD(2, 2), &wsaData) == NO_ERROR, "WSAStartup failed");
@@ -115,7 +111,6 @@ int main(int argc, char* argv[]) {
     int prob = -1;
     int seed = -1;
     int n = -1;
-    int NumChangedBits = -1;
     noiseType noise_type;
 
     ASSERT(argc == 3 || argc == 4, "argc value is to big / small");
@@ -146,18 +141,28 @@ int main(int argc, char* argv[]) {
         ASSERT((sender_fd = accept(sender_listen_fd, (SOCKADDR*)&peer_addr, &addrsize)) != INVALID_SOCKET, "accept sender failed");
         ASSERT((receiver_fd = accept(receiver_listen_fd, (SOCKADDR*)&peer_addr, &addrsize)) != INVALID_SOCKET, "accept receiver failed");
 
-        buffer = get_buffer(sender_fd, &buffer_size);
-        NumChangedBits = addNoise(buffer, buffer_size, noise_type, prob, seed, n);
-        printf("retransmitted %d bytes, flipped %d bits\n", buffer_size, NumChangedBits);
-        send_buffer(receiver_fd, buffer, buffer_size);
+        recieved_bytes = 0;
+        total_recieved_bytes = 0;
+        numChangedBits = 0;
+        totalNumChangedBits = 0;
+        while (1) {
+            recieved_bytes = get_buffer(sender_fd, buffer, ENC_BUFFER_LENGTH);
+            total_recieved_bytes += recieved_bytes;
+            if (recieved_bytes == 0) {
+                break;
+            }
+            numChangedBits = addNoise(buffer, recieved_bytes, noise_type, prob, seed, n);
+            totalNumChangedBits += numChangedBits;
+            send_buffer(receiver_fd, buffer, recieved_bytes);
+        }
 
-        free(buffer);
+        printf("retransmitted %d bytes, flipped %d bits\n", total_recieved_bytes, totalNumChangedBits);
 
         closesocket(sender_fd);
         closesocket(receiver_fd);
 
         printf("continue? (yes/no)");
-        scanf_s("%s", user_input);
+        scanf("%s", user_input);
         if (strcmp("yes", user_input) == 0) {
             continue;
         }
