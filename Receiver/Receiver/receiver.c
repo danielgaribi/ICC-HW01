@@ -90,7 +90,7 @@ void convert_bit_array_to_buffer(char* buffer, int* buffer_length, short* bits_a
 
     c = 0;
     offset = size_of_char_in_bits - 1;
-    memset(buffer, 0, ENC_BUFFER_LENFTH);
+    memset(buffer, 0, ENC_BUFFER_LENGTH);
     for (i = 0; i < bits_array_length; i++) {
         c = c | (bits_array[i] << offset);
         offset--;
@@ -147,8 +147,8 @@ int main(int argc, char* argv[]) {
     struct sockaddr_in serv_addr;
     WSADATA wsaData;
 
-    char data_buffer[DATA_BUFFER_LENFTH] = { 0 };
-    char enc_buffer[ENC_BUFFER_LENFTH] = { 0 };
+    char data_buffer[DATA_BUFFER_LENGTH] = { 0 };
+    char enc_buffer[ENC_BUFFER_LENGTH] = { 0 };
 
     ASSERT(WSAStartup(MAKEWORD(2, 2), &wsaData) == NO_ERROR, "WSAStartup failed");
 
@@ -183,7 +183,7 @@ int main(int argc, char* argv[]) {
         nof_corrected_bytes = 0;
         nof_write_bytes = 0;
         while (1) {
-            recieved_bytes = get_buffer(socket_fd, enc_buffer, ENC_BUFFER_LENFTH);
+            recieved_bytes = get_buffer(socket_fd, enc_buffer, ENC_BUFFER_LENGTH);
             total_recieved_bytes += recieved_bytes;
             if (recieved_bytes == 0) {
                 break;

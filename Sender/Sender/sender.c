@@ -84,7 +84,7 @@ int read_frame_from_file(FILE* file_fd, int file_length, char* buffer) {
     int total_nof_read_bytes = 0;
     char* working_buffer = buffer;
 
-    memset(buffer, 0, DATA_BUFFER_LENFTH);
+    memset(buffer, 0, DATA_BUFFER_LENGTH);
     while ((nof_read_bytes = fread(working_buffer, sizeof(char), nof_remain_bytes, file_fd)) != nof_remain_bytes) {
         nof_remain_bytes -= nof_read_bytes;
         working_buffer += nof_read_bytes;
@@ -103,7 +103,7 @@ void convert_bit_array_to_buffer(char* enc_buffer, int* enc_buffer_length, short
 
     c = 0;
     offset = size_of_char_in_bits - 1;
-    memset(enc_buffer, 0, ENC_BUFFER_LENFTH);
+    memset(enc_buffer, 0, ENC_BUFFER_LENGTH);
     for (i = 0; i < bits_array_length; i++) {
         c = c | (bits_array[i] << offset);
         offset--;
@@ -162,8 +162,8 @@ int main(int argc, char* argv[]) {
     struct sockaddr_in serv_addr;
     WSADATA wsaData;
 
-    char data_buffer[DATA_BUFFER_LENFTH] = { 0 };
-    char enc_buffer[ENC_BUFFER_LENFTH] = { 0 };
+    char data_buffer[DATA_BUFFER_LENGTH] = { 0 };
+    char enc_buffer[ENC_BUFFER_LENGTH] = { 0 };
 
     ASSERT(WSAStartup(MAKEWORD(2, 2), &wsaData) == NO_ERROR, "WSAStartup failed");
 

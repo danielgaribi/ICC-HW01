@@ -97,7 +97,7 @@ int setup_listen_socket(char* type) {
 }
 
 int main(int argc, char* argv[]) {
-    char buffer[ENC_BUFFER_LENFTH] = { 0 };
+    char buffer[ENC_BUFFER_LENGTH] = { 0 };
     char user_input[MAX_STR_LEN];
     struct sockaddr_in peer_addr;
     int addrsize = sizeof(struct sockaddr_in);
@@ -146,7 +146,7 @@ int main(int argc, char* argv[]) {
         numChangedBits = 0;
         totalNumChangedBits = 0;
         while (1) {
-            recieved_bytes = get_buffer(sender_fd, buffer, ENC_BUFFER_LENFTH);
+            recieved_bytes = get_buffer(sender_fd, buffer, ENC_BUFFER_LENGTH);
             total_recieved_bytes += recieved_bytes;
             if (recieved_bytes == 0) {
                 break;
