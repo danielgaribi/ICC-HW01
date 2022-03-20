@@ -33,8 +33,26 @@ uint32_t send_buffer(int socket_fd, char* buffer, uint32_t buffer_length) {
     return total_nof_sent_bytes;
 }
 
+int getRand() {
+    int r, b;
+    if (RAND_MAX >= MAX_RAND_VALUE) {
+        return (rand() % RAND_MAX);
+    }
+
+    /* RAND_MAX = 2^15, need to do 2 rands*/
+    r = rand();
+    b = (rand() % 2); /* b is 0/1 */
+    
+    r += b << 15;
+    printf("r=%d\n", r);
+    return r;
+}
+
 int addNoise(char* msg, uint32_t msg_size, noiseType noise_type, int prob, int seed, int n) {
     int NumChangedBits = 0;
+    char byte;
+    uint8_t mask = 1 << 7;
+
     if (noise_type == noNoise) { // debug
         return NumChangedBits;
     }
@@ -42,14 +60,14 @@ int addNoise(char* msg, uint32_t msg_size, noiseType noise_type, int prob, int s
     if (noise_type == randomy) {
         srand(seed);
         for (int i = 0; i < msg_size; i++) {
-            char byte = msg[i];
-            uint8_t mask = 1;
-            for (int bit = 0; bit <= 7; bit++) {
-                if ((rand() % MAX_RAND) < prob) {
+            byte = msg[i];
+            mask = 1 << 7;
+            for (int bit = 7; bit >= 0; bit--) {
+                if (getRand() < prob) {
                     byte = byte ^ mask;
                     NumChangedBits++;
                 }
-                mask = mask * 2;
+                mask = mask >> 1;
             }
             msg[i] = byte;
         }
@@ -57,16 +75,16 @@ int addNoise(char* msg, uint32_t msg_size, noiseType noise_type, int prob, int s
     else { // noise_type == deterministic
         int cnt = 1;
         for (int i = 0; i < msg_size; i++) {
-            char byte = msg[i];
-            uint8_t mask = 1;
-            for (int bit = 0; bit <= 7; bit++) {
+            byte = msg[i];
+            mask = 1 << 7;
+            for (int bit = 7; bit >= 0; bit--) {
                 if (cnt == n) {
                     byte = byte ^ mask;
                     NumChangedBits++;
                     cnt = 0;
                 }
                 cnt++;
-                mask = mask * 2;
+                mask = mask >> 1;
             }
             msg[i] = byte;
         }
