@@ -11,7 +11,6 @@
 
 #pragma comment (lib, "Ws2_32.lib")
 
-#define ALLOC_BLOCK             1024
 #define MAX_STR_LEN             1024
 
 #define FRAME_NOF_DATA_BITS     26
@@ -39,7 +38,6 @@
 
 #define ASSERT(_con, _msg)    if (!(_con)) {\
                                     perror("Error!\n");\
-                                    printf("%d\n", WSAGetLastError());\
                                     perror((char *)(_msg));\
                                     exit(1);\
                                 }

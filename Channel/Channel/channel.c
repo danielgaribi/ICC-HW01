@@ -33,6 +33,11 @@ uint32_t send_buffer(int socket_fd, char* buffer, uint32_t buffer_length) {
     return total_nof_sent_bytes;
 }
 
+/*
+* If RAND_MAX (the maximum value that rand can return) value is less then 2^16
+* we need to get 2 random numbers, the first one will be the first 15 bits and
+* the second one will be the 16th bit.
+*/
 int getRand() {
     int r, b;
     if (RAND_MAX >= MAX_RAND_VALUE) {
@@ -44,7 +49,6 @@ int getRand() {
     b = (rand() % 2); /* b is 0/1 */
     
     r += b << 15;
-    printf("r=%d\n", r);
     return r;
 }
 
@@ -52,10 +56,6 @@ int addNoise(char* msg, uint32_t msg_size, noiseType noise_type, int prob, int s
     int NumChangedBits = 0;
     char byte;
     uint8_t mask = 1 << 7;
-
-    if (noise_type == noNoise) { // debug
-        return NumChangedBits;
-    }
 
     if (noise_type == randomy) {
         srand(seed);
@@ -94,6 +94,8 @@ int addNoise(char* msg, uint32_t msg_size, noiseType noise_type, int prob, int s
 
 int setup_listen_socket(char* type) {
     struct sockaddr_in serv_addr;
+    char hostname[MAX_STR_LEN], *ipAddress;
+    struct hostent* entry;
     int listen_fd;
     int size;
 
@@ -107,9 +109,13 @@ int setup_listen_socket(char* type) {
     ASSERT(bind(listen_fd, (SOCKADDR*)&serv_addr, sizeof(serv_addr)) == 0, "bind failed");
     ASSERT(listen(listen_fd, LISTEN_QUEUE_SIZE) == 0, "listen failed");
 
+    /*get and print IP address and port number*/
     size = sizeof(serv_addr);
     ASSERT(getsockname(listen_fd, (struct sockaddr*)&serv_addr, &size) == NO_ERROR, "getsockname failed");
-    printf("%s socket: IP address = %s port = %d\n", type, inet_ntoa(serv_addr.sin_addr), ntohs(serv_addr.sin_port));
+    ASSERT(gethostname(hostname, MAX_STR_LEN) == 0, "gethostname failed");
+    entry = gethostbyname(hostname);
+    ipAddress = inet_ntoa(*((struct in_addr*)entry->h_addr_list[0]));
+    printf("%s socket: IP address = %s port = %d\n", type, ipAddress, ntohs(serv_addr.sin_port));
 
     return listen_fd;
 }
@@ -133,7 +139,7 @@ int main(int argc, char* argv[]) {
 
     ASSERT(argc == 3 || argc == 4, "argc value is to big / small");
 
-    char* noise_type_str = argv[1]; // debug: Assuming that type of noise will be set as first argument 
+    char* noise_type_str = argv[1]; // Assuming that type of noise will be set as first argument 
     if (strcmp(noise_type_str, "-r") == 0) {
         ASSERT(argc == 4, "Invalid number of args");
         prob = atoi(argv[2]);
@@ -144,9 +150,6 @@ int main(int argc, char* argv[]) {
         ASSERT(argc == 3, "Invalid number of args");
         n = atoi(argv[2]);
         noise_type = deterministic;
-    }
-    else if (strcmp(noise_type_str, "-n") == 0) { // debug: For debug 
-        noise_type = noNoise;
     }
     else {
         ASSERT(0, "Invalid noise type, use -r for random and -d of args");
@@ -194,4 +197,6 @@ int main(int argc, char* argv[]) {
     }
     closesocket(sender_listen_fd);
     closesocket(receiver_listen_fd);
+
+    exit(0);
 }
