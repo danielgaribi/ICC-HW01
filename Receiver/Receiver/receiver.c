@@ -64,6 +64,7 @@ uint32_t get_buffer(int socket_fd, char* enc_buffer, uint32_t buffer_length) {
 
     do {
         ASSERT((nof_bytes_rec = recv(socket_fd, current_buffer_pointer, buffer_length - total_nof_bytes_rec, 0)) >= 0, "recv failed");
+        /* Calc number of remain bytes to recv and change to buffer pointer accordingly */
         total_nof_bytes_rec += nof_bytes_rec;
         if (buffer_length == total_nof_bytes_rec) {
             break;
@@ -81,6 +82,10 @@ uint32_t write_file(FILE* file_fd, uint32_t buffer_length, char* buffer) {
     return nof_write_bytes;
 }
 
+
+/*
+* recieve array of bits, return buffer that contains all bits in the same order
+*/
 void convert_bit_array_to_buffer(char* buffer, int* buffer_length, short* bits_array, int bits_array_length) {
     int i, j, index = 0;
     int is_during_word = 0;
@@ -91,6 +96,8 @@ void convert_bit_array_to_buffer(char* buffer, int* buffer_length, short* bits_a
     c = 0;
     offset = size_of_char_in_bits - 1;
     memset(buffer, 0, ENC_BUFFER_LENGTH);
+
+    /* Go over all bits and place them in the buffer*/
     for (i = 0; i < bits_array_length; i++) {
         c = c | (bits_array[i] << offset);
         offset--;
@@ -122,6 +129,8 @@ uint32_t dec_file(char* buffer, int* buffer_length, char* enc_buffer, int enc_bu
     short mask;
     int i, j, index = 0;
     uint32_t nof_corrected_bytes = 0, nof_bits = 0;
+
+    /* conver buffer to bits array and remove haming bits (fix bits if necessary) */
     for (i = 0; i < enc_buffer_length; i++) {
         for (j = size_of_char_in_bits - 1; j >= 0; j--) {
             enc_bits_array[index] = (enc_buffer[i] >> j) & 1;
@@ -134,6 +143,7 @@ uint32_t dec_file(char* buffer, int* buffer_length, char* enc_buffer, int enc_bu
             }
         }
     }
+
     convert_bit_array_to_buffer(buffer, buffer_length, data_bits_array, nof_bits);
     return nof_corrected_bytes;
 }

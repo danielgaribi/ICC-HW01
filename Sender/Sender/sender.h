@@ -26,18 +26,11 @@
 #define C4_INDEX                7
 #define C5_INDEX                15
 
-#define C1_WEIGHT               1
-#define C2_WEIGHT               2
-#define C3_WEIGHT               4
-#define C4_WEIGHT               8
-#define C5_WEIGHT               16
-
 #define CONVERT_BIT_TO_BYTES(_nof_bits)    ((_nof_bits) / NOF_BITS_IN_BYTE)
 #define CONVERT_BYTES_TO_BITS(_nof_bytes)  ((_nof_bytes) * NOF_BITS_IN_BYTE)
 
 #define ASSERT(_con, _msg)    if (!(_con)) {\
                                     perror("Error!\n");\
-                                    printf("%d\n", WSAGetLastError());\
                                     perror((char *)(_msg));\
                                     exit(1);\
                                 }

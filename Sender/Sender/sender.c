@@ -61,6 +61,7 @@ uint32_t send_buffer(int socket_fd, char* buffer, uint32_t buffer_length) {
 
     do {
         ASSERT((sent_bytes = send(socket_fd, buffer, nof_bytes, 0)) >= 0, "send failed");
+        /* Calc number of remain bytes to send and change to buffer pointer accordingly */
         nof_bytes -= sent_bytes;
         buffer += sent_bytes;
         total_nof_sent_bytes += sent_bytes;
@@ -74,7 +75,6 @@ int get_file_size(FILE* file_fd) {
     fseek(file_fd, 0L, SEEK_END);
     file_length = ftell(file_fd);
     fseek(file_fd, 0, SEEK_SET);
-    // rewind(file_fd);
     return file_length;
 }
 
@@ -86,6 +86,7 @@ int read_frame_from_file(FILE* file_fd, int file_length, char* buffer) {
 
     memset(buffer, 0, DATA_BUFFER_LENGTH);
     while ((nof_read_bytes = fread(working_buffer, sizeof(char), nof_remain_bytes, file_fd)) != nof_remain_bytes) {
+        /* Calc number of remain bytes to read and change to buffer pointer accordingly */
         nof_remain_bytes -= nof_read_bytes;
         working_buffer += nof_read_bytes;
         total_nof_read_bytes += nof_read_bytes;
@@ -94,6 +95,9 @@ int read_frame_from_file(FILE* file_fd, int file_length, char* buffer) {
     return total_nof_read_bytes;
 }
 
+/*
+* recieve array of bits, return buffer that contains all bits in the same order
+*/
 void convert_bit_array_to_buffer(char* enc_buffer, int* enc_buffer_length, short* bits_array, int bits_array_length) {
     int i, j, index = 0;
     int is_during_word = 0;
@@ -104,6 +108,8 @@ void convert_bit_array_to_buffer(char* enc_buffer, int* enc_buffer_length, short
     c = 0;
     offset = size_of_char_in_bits - 1;
     memset(enc_buffer, 0, ENC_BUFFER_LENGTH);
+
+    /* Go over all bits and place them in the buffer*/
     for (i = 0; i < bits_array_length; i++) {
         c = c | (bits_array[i] << offset);
         offset--;
@@ -133,6 +139,8 @@ void enc_file(char* buffer, uint32_t buffer_length, char* enc_buffer, uint32_t* 
     int size_of_char_in_bits = CONVERT_BYTES_TO_BITS(sizeof(char));
     int i, j, index = 0;
     uint32_t nof_bits = 0;
+
+    /* conver buffer to bits array and add haming bits*/
     for (i = 0; i < buffer_length; i++) {
         for (j = size_of_char_in_bits - 1; j >= 0; j--) {
             sub_bits_array[index] = (buffer[i] >> j) & 1;
@@ -145,11 +153,14 @@ void enc_file(char* buffer, uint32_t buffer_length, char* enc_buffer, uint32_t* 
             }
         }
     }
+
+    /*Add zeros in case of buffer that contina nof_bits that isnt multiple of 26*/
     if (index != 0) {
         encode_haming(sub_bits_array);
         sub_bits_array += FRAME_NOF_BITS;
         nof_bits += FRAME_NOF_BITS;
     }
+
     convert_bit_array_to_buffer(enc_buffer, enc_buffer_length, bits_array, nof_bits);
 }
 
@@ -176,7 +187,6 @@ int main(int argc, char* argv[]) {
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(server_port);
     serv_addr.sin_addr.s_addr = inet_addr(server_ip);
-
 
     while (1) {
         /* Create TCP Socket */
